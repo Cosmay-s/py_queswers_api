@@ -18,3 +18,26 @@ API сервис для вопросов и ответов на FastAPI
 - Pydantic
 - Alembic
 - Docker
+
+## Запуск
+
+```bash
+# Локально
+uvicorn app.main:app --reload
+
+# Через Docker
+docker-compose up --build
+```
+
+## Работа с миграциями
+
+```bash
+# Создание новой миграции
+alembic revision --autogenerate -m "..."
+
+# Применение миграции
+alembic upgrade head
+
+# Откат последней миграции
+alembic downgrade -1
+```
