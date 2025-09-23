@@ -4,14 +4,12 @@ from pydantic import BaseModel, Field, field_validator
 
 class AnswerBase(BaseModel):
     text: str = Field(
-        ...,
         min_length=1,
         max_length=2000,
         description="Текст ответа",
         )
 
     user_id: str = Field(
-        ...,
         min_length=1,
         max_length=255,
         description="ID пользователя",
