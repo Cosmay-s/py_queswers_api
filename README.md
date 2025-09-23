@@ -18,3 +18,12 @@ API сервис для вопросов и ответов на FastAPI
 - Pydantic
 - Alembic
 - Docker
+
+## Запуск
+
+```bash
+# Локально
+uvicorn app.main:app --reload
+
+# Через Docker
+docker-compose up --build
