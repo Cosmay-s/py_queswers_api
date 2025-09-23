@@ -1,7 +1,6 @@
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import select
 from fastapi import HTTPException, status
-
 from app.models.question import Question
 from app.schemas.question import QuestionCreate
 
@@ -18,9 +17,9 @@ class QuestionService:
     def get_question(db: Session, question_id: int):
         """Получить вопрос по ID с ответами"""
         stmt = select(Question).where(
-            Question.id == question_id
-                ).options(joinedload(Question.answers)
-                          )
+            Question.id == question_id).options(
+                selectinload(Question.answers)
+                )
         result = db.execute(stmt)
         question = result.scalar_one_or_none()
 

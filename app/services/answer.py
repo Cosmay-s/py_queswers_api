@@ -24,6 +24,7 @@ class AnswerService:
     @staticmethod
     def create_answer(db: Session, question_id: int, answer: AnswerCreate):
         """Создать ответ для вопроса"""
+
         question_stmt = select(Question).where(Question.id == question_id)
         result = db.execute(question_stmt)
         question = result.scalar_one_or_none()
