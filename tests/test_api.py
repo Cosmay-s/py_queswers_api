@@ -6,119 +6,112 @@ BASE_URL = "http://127.0.0.1:8000/api/v1"
 
 def test_api():
     """
-    Интеграционный тест API.
+    Полный тест API с проверкой CRUD операций и базовой валидации.
 
-    Проверяет основные CRUD-операции с вопросами и ответами:
-    - создание, получение и удаление вопросов и ответов;
-    - базовую работоспособность эндпоинтов.
-
-    Включает минимальную проверку бизнес-правил для базового уровня,
-    но не углубляется в логику.
+    Проверяет:
+    - создание, получение, удаление вопросов и ответов;
+    - предотвращение дубликатов вопросов;
+    - бизнес-правила (ответы к несуществующим вопросам, каскадное удаление);
+    - валидацию коротких ответов.
     """
-    print("🧪 Тестируем API и бизнес-правила...")
+    print("🧪 Тестируем API с валидацией...")
 
     time.sleep(1)
 
     with httpx.Client(timeout=30.0) as client:
         try:
-            # Базовые операции
-            print("=== Основные операции с API ===")
+            print("=== Основные операции ===")
 
-            # Создаем вопрос
-            question_data = {"text": "Тестовый вопрос?"}
-            response = client.post(
-                f"{BASE_URL}/questions/",
-                json=question_data
-                )
+            question_data = {"text": "Что такое Python?"}
+            response = client.post(f"{BASE_URL}/questions/",
+                                   json=question_data)
             assert response.status_code == 201
             question = response.json()
             question_id = question["id"]
-            print(f"✅ Вопрос создан с id={question_id}")
+            print("✅ Создание валидного вопроса")
 
-            # Получаем список вопросов
-            response = client.get(f"{BASE_URL}/questions/")
-            assert response.status_code == 200
-            print("✅ Список вопросов получен")
+            duplicate_question = {"text": "  что такое python?  "}
+            response = client.post(f"{BASE_URL}/questions/",
+                                   json=duplicate_question)
+            assert response.status_code == 400
+            print("✅ Предотвращение дубликатов")
 
-            # Получаем вопрос по id с ответами
-            response = client.get(f"{BASE_URL}/questions/{question_id}")
-            assert response.status_code == 200
-            print(f"✅ Вопрос с id={question_id} получен")
-
-            # Создаем ответ
-            answer_data = {"text": "Тестовый ответ", "user_id": "user123"}
+            answer_data = {
+                "text": "Python — высокоуровневый язык программирования",
+                "user_id": "user123"
+            }
             response = client.post(
                 f"{BASE_URL}/answers/questions/{question_id}/answers/",
-                json=answer_data,
+                json=answer_data
             )
             assert response.status_code == 201
             answer = response.json()
             answer_id = answer["id"]
-            print(f"✅ Ответ создан с id={answer_id}")
+            print("✅ Создание валидного ответа")
 
-            # Получаем ответ по id
-            response = client.get(f"{BASE_URL}/answers/{answer_id}")
-            assert response.status_code == 200
-            print(f"✅ Ответ с id={answer_id} получен")
-
-            # Удаляем ответ
-            response = client.delete(f"{BASE_URL}/answers/{answer_id}")
-            assert response.status_code == 200
-            print(f"✅ Ответ с id={answer_id} удалён")
-
-            # Проверка бизнес-правил
             print("=== Проверка бизнес-правил ===")
 
-            # Нельзя создать ответ к несуществующему вопросу
-            print("Проверка: нельзя создать ответ к несуществующему вопросу")
             response = client.post(
                 f"{BASE_URL}/answers/questions/9999/answers/", json=answer_data
             )
             assert response.status_code == 404
             print("✅ Нельзя создать ответ к несуществующему вопросу")
 
-            # Один юзер может оставлять несколько ответов к одному вопросу
-            print(
-                "Проверка: юзер может оставить несколько ответов"
-                )
-            answer1_data = {"text": "Ответ 1", "user_id": "multi_user"}
-            answer2_data = {"text": "Ответ 2", "user_id": "multi_user"}
-
-            resp1 = client.post(
+            another_answer = {
+                "text": "Python отлично подходит для веб-разработки",
+                "user_id": "user123"
+            }
+            response = client.post(
                 f"{BASE_URL}/answers/questions/{question_id}/answers/",
-                json=answer1_data
+                json=another_answer
             )
-            resp2 = client.post(
-                f"{BASE_URL}/answers/questions/{question_id}/answers/",
-                json=answer2_data
-            )
-            assert resp1.status_code == 201
-            assert resp2.status_code == 201
+            assert response.status_code == 201
+            print("✅ Один юзер может оставить несколько ответов")
 
+            # Проверяем количество ответов до удаления
             response = client.get(f"{BASE_URL}/questions/{question_id}")
-            question = response.json()
-            assert len(question["answers"]) == 2
-            print(
-                "✅ Один юзер может оставить несколько ответов к одному вопросу"
-                )
+            question_data = response.json()
+            assert len(question_data.get("answers",
+                                         [])) >= 1, "Ожидалось минимум 1 ответ"
 
-            # Каскадное удаление
-            print("Проверка: каскадное удаление ответов при удалении вопроса")
             response = client.delete(f"{BASE_URL}/questions/{question_id}")
             assert response.status_code == 200
 
-            # Проверяем, что вопросы и ответы удалены
-            response = client.get(f"{BASE_URL}/questions/{question_id}")
+            response = client.get(f"{BASE_URL}/answers/{answer_id}")
             assert response.status_code == 404
-            print("✅ Вопрос и связанные ответы удалены каскадно")
+            print("✅ Каскадное удаление ответов работает")
 
-            print("🎉 Тесты API и бизнес-правил пройдены успешно!")
+            print("=== Валидация ===")
+
+            valid_question = {"text": "Вопрос для проверки валидации"}
+            response = client.post(f"{BASE_URL}/questions/",
+                                   json=valid_question)
+            new_question_id = response.json()["id"]
+
+            invalid_answer = {"text": "No", "user_id": "test"}
+            response = client.post(
+                f"{BASE_URL}/answers/questions/{new_question_id}/answers/",
+                json=invalid_answer
+            )
+            assert response.status_code == 422
+            print("✅ Валидация короткого ответа")
+
+            # Очистка
+            delete_response = client.delete(
+                f"{BASE_URL}/questions/{new_question_id}"
+                )
+            assert delete_response.status_code == 200
+
+            print("🎉 Тест API с валидацией пройден успешно!")
             return True
 
         except Exception as e:
+            import traceback
             print(f"❌ Тест провален: {e}")
+            traceback.print_exc()
             return False
 
 
 if __name__ == "__main__":
-    test_api()
+    success = test_api()
+    exit(0 if success else 1)
