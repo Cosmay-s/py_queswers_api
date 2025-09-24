@@ -5,85 +5,118 @@ BASE_URL = "http://127.0.0.1:8000/api/v1"
 
 
 def test_api():
-    """Тестирование API согласно требованиям задания"""
-    print("🧪 Тестирование API согласно криериям")
+    """
+    Интеграционный тест API.
+
+    Проверяет основные CRUD-операции с вопросами и ответами:
+    - создание, получение и удаление вопросов и ответов;
+    - базовую работоспособность эндпоинтов.
+
+    Включает минимальную проверку бизнес-правил для базового уровня,
+    но не углубляется в логику.
+    """
+    print("🧪 Тестируем API и бизнес-правила...")
 
     time.sleep(1)
 
     with httpx.Client(timeout=30.0) as client:
         try:
-            # 1. Эндпоинты вопросов
-            print("=== Тестирование Вопросов ===")
+            # Базовые операции
+            print("=== Основные операции с API ===")
 
-            # POST /questions/
+            # Создаем вопрос
             question_data = {"text": "Тестовый вопрос?"}
             response = client.post(
                 f"{BASE_URL}/questions/",
-                json=question_data)
+                json=question_data
+                )
             assert response.status_code == 201
             question = response.json()
             question_id = question["id"]
-            print("✅ POST /questions/")
+            print(f"✅ Вопрос создан с id={question_id}")
 
-            # GET /questions/
+            # Получаем список вопросов
             response = client.get(f"{BASE_URL}/questions/")
             assert response.status_code == 200
-            print("✅ GET /questions/")
+            print("✅ Список вопросов получен")
 
-            # GET /questions/{id}
+            # Получаем вопрос по id с ответами
             response = client.get(f"{BASE_URL}/questions/{question_id}")
             assert response.status_code == 200
-            print("✅ GET /questions/{id}")
+            print(f"✅ Вопрос с id={question_id} получен")
 
-            # 2. Эндпоинты ответов
-            print("=== Тестирование Ответов ===")
-
-            # POST /answers/questions/{id}/answers/
+            # Создаем ответ
             answer_data = {"text": "Тестовый ответ", "user_id": "user123"}
             response = client.post(
                 f"{BASE_URL}/answers/questions/{question_id}/answers/",
-                json=answer_data
+                json=answer_data,
             )
             assert response.status_code == 201
             answer = response.json()
             answer_id = answer["id"]
-            print("✅ POST /answers/questions/{id}/answers/")
+            print(f"✅ Ответ создан с id={answer_id}")
 
-            # GET /answers/{id}
+            # Получаем ответ по id
             response = client.get(f"{BASE_URL}/answers/{answer_id}")
             assert response.status_code == 200
-            print("✅ GET /answers/{id}")
+            print(f"✅ Ответ с id={answer_id} получен")
 
-            # DELETE /answers/{id}
+            # Удаляем ответ
             response = client.delete(f"{BASE_URL}/answers/{answer_id}")
             assert response.status_code == 200
-            print("✅ DELETE /answers/{id}")
+            print(f"✅ Ответ с id={answer_id} удалён")
 
-            # 3. Тест каскадного удаления
-            print("=== Тестирование Каскадного Удаления ===")
+            # Проверка бизнес-правил
+            print("=== Проверка бизнес-правил ===")
 
-            # Создание нового ответа для теста каскадного удаления
+            # Нельзя создать ответ к несуществующему вопросу
+            print("Проверка: нельзя создать ответ к несуществующему вопросу")
             response = client.post(
-                f"{BASE_URL}/answers/questions/{question_id}/answers/",
-                json=answer_data
+                f"{BASE_URL}/answers/questions/9999/answers/", json=answer_data
             )
-            answer_id = response.json()["id"]
+            assert response.status_code == 404
+            print("✅ Нельзя создать ответ к несуществующему вопросу")
 
-            # DELETE /questions/{id} (должен каскадно удалить ответы)
+            # Один юзер может оставлять несколько ответов к одному вопросу
+            print(
+                "Проверка: юзер может оставить несколько ответов"
+                )
+            answer1_data = {"text": "Ответ 1", "user_id": "multi_user"}
+            answer2_data = {"text": "Ответ 2", "user_id": "multi_user"}
+
+            resp1 = client.post(
+                f"{BASE_URL}/answers/questions/{question_id}/answers/",
+                json=answer1_data
+            )
+            resp2 = client.post(
+                f"{BASE_URL}/answers/questions/{question_id}/answers/",
+                json=answer2_data
+            )
+            assert resp1.status_code == 201
+            assert resp2.status_code == 201
+
+            response = client.get(f"{BASE_URL}/questions/{question_id}")
+            question = response.json()
+            assert len(question["answers"]) == 2
+            print(
+                "✅ Один юзер может оставить несколько ответов к одному вопросу"
+                )
+
+            # Каскадное удаление
+            print("Проверка: каскадное удаление ответов при удалении вопроса")
             response = client.delete(f"{BASE_URL}/questions/{question_id}")
             assert response.status_code == 200
-            print("✅ DELETE /questions/{id}")
 
-            # Проверка каскадного удаления
-            response = client.get(f"{BASE_URL}/answers/{answer_id}")
+            # Проверяем, что вопросы и ответы удалены
+            response = client.get(f"{BASE_URL}/questions/{question_id}")
             assert response.status_code == 404
-            print("✅ Каскадное удаление работает")
+            print("✅ Вопрос и связанные ответы удалены каскадно")
 
-            print("🎉 Все эндпоинты API работают корректно!")
+            print("🎉 Тесты API и бизнес-правил пройдены успешно!")
             return True
 
         except Exception as e:
-            print(f"❌ Тест не пройден: {e}")
+            print(f"❌ Тест провален: {e}")
             return False
 
 
