@@ -4,17 +4,21 @@ from pydantic import BaseModel, Field, field_validator
 
 
 class QuestionBase(BaseModel):
-    text: str = Field(
-        min_length=1,
-        max_length=1000,
-        description="Текст вопроса",
-    )
+    text: str = Field(min_length=5,
+                      max_length=1000,
+                      description="Текст вопроса (5-1000 символов)")
 
     @field_validator('text')
-    def text_cannot_be_empty(cls, v):
+    def validate_text(cls, v):
         if not v or not v.strip():
             raise ValueError('Текст вопроса не может быть пустым')
-        return v.strip()
+        # Убираем лишние пробелы и проверяем минимальную длину
+        cleaned_text = ' '.join(v.strip().split())
+        if len(cleaned_text) < 5:
+            raise ValueError(
+                'Текст вопроса должен содержать не менее 5 символов'
+                )
+        return cleaned_text
 
 
 class QuestionCreate(QuestionBase):

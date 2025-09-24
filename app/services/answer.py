@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 from fastapi import HTTPException, status
+
 from app.models.question import Question
 from app.models.answer import Answer
 from app.schemas.answer import AnswerCreate
@@ -24,7 +25,7 @@ class AnswerService:
     @staticmethod
     def create_answer(db: Session, question_id: int, answer: AnswerCreate):
         """Создать ответ для вопроса"""
-
+        # Проверяем существование вопроса
         question_stmt = select(Question).where(Question.id == question_id)
         result = db.execute(question_stmt)
         question = result.scalar_one_or_none()
@@ -33,6 +34,13 @@ class AnswerService:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Question not found"
+            )
+
+        # Проверяем, не слишком ли длинный ответ (бизнес-правило)
+        if len(answer.text) > 2000:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Answer text is too long (max 2000 characters)"
             )
 
         db_answer = Answer(
