@@ -1,90 +1,90 @@
 import httpx
-import json
 import time
 
 BASE_URL = "http://127.0.0.1:8000/api/v1"
 
 
 def test_api():
-    """Тест основных endpoints API"""
-    print("🧪 Testing API endpoints...")
+    """Тестирование API согласно требованиям задания"""
+    print("🧪 Тестирование API согласно криериям")
 
-    # Даем серверу время запуститься
-    time.sleep(2)
+    time.sleep(1)
 
     with httpx.Client(timeout=30.0) as client:
         try:
-            # 1. Создаем вопрос
-            question_data = {"text": "What is FastAPI?"}
-            response = client.post(f"{BASE_URL}/questions/",
-                                   json=question_data)
-            print(f"✅ Create question: {response.status_code}")
-            if response.status_code != 201:
-                print(f"Error: {response.text}")
-                return
+            # 1. Эндпоинты вопросов
+            print("=== Тестирование Вопросов ===")
 
+            # POST /questions/
+            question_data = {"text": "Тестовый вопрос?"}
+            response = client.post(
+                f"{BASE_URL}/questions/",
+                json=question_data)
+            assert response.status_code == 201
             question = response.json()
             question_id = question["id"]
+            print("✅ POST /questions/")
 
-            # 2. Получаем список вопросов
+            # GET /questions/
             response = client.get(f"{BASE_URL}/questions/")
-            print(f"✅ Get questions: {response.status_code}")
-            if response.status_code != 200:
-                print(f"Error: {response.text}")
-                return
+            assert response.status_code == 200
+            print("✅ GET /questions/")
 
-            # 3. Получаем конкретный вопрос
+            # GET /questions/{id}
             response = client.get(f"{BASE_URL}/questions/{question_id}")
-            print(f"✅ Get question: {response.status_code}")
-            if response.status_code != 200:
-                print(f"Error: {response.text}")
-                return
+            assert response.status_code == 200
+            print("✅ GET /questions/{id}")
 
-            question_detail = response.json()
-            print(f"Question details: {json.dumps(question_detail,
-                                                  indent=2,
-                                                  default=str)}")
+            # 2. Эндпоинты ответов
+            print("=== Тестирование Ответов ===")
 
-            # 4. Добавляем ответ
-            answer_data = {"text": "FastAPI is a modern web framework",
-                           "user_id": "test_user"}
-
+            # POST /answers/questions/{id}/answers/
+            answer_data = {"text": "Тестовый ответ", "user_id": "user123"}
             response = client.post(
-                f"{BASE_URL}/questions/{question_id}/answers",
-                json=answer_data)
-            print(f"✅ Create answer: {response.status_code}")
-            if response.status_code != 201:
-                print(f"Error: {response.text}")
-                return
-
+                f"{BASE_URL}/answers/questions/{question_id}/answers/",
+                json=answer_data
+            )
+            assert response.status_code == 201
             answer = response.json()
             answer_id = answer["id"]
+            print("✅ POST /answers/questions/{id}/answers/")
 
-            # 5. Получаем ответ
+            # GET /answers/{id}
             response = client.get(f"{BASE_URL}/answers/{answer_id}")
-            print(f"✅ Get answer: {response.status_code}")
-            if response.status_code != 200:
-                print(f"Error: {response.text}")
-                return
+            assert response.status_code == 200
+            print("✅ GET /answers/{id}")
 
-            # 6. Удаляем вопрос (должны удалиться и ответы)
+            # DELETE /answers/{id}
+            response = client.delete(f"{BASE_URL}/answers/{answer_id}")
+            assert response.status_code == 200
+            print("✅ DELETE /answers/{id}")
+
+            # 3. Тест каскадного удаления
+            print("=== Тестирование Каскадного Удаления ===")
+
+            # Создание нового ответа для теста каскадного удаления
+            response = client.post(
+                f"{BASE_URL}/answers/questions/{question_id}/answers/",
+                json=answer_data
+            )
+            answer_id = response.json()["id"]
+
+            # DELETE /questions/{id} (должен каскадно удалить ответы)
             response = client.delete(f"{BASE_URL}/questions/{question_id}")
-            print(f"✅ Delete question: {response.status_code}")
-            if response.status_code != 200:
-                print(f"Error: {response.text}")
-                return
+            assert response.status_code == 200
+            print("✅ DELETE /questions/{id}")
 
-            # 7. Проверяем что ответ удалился каскадно
+            # Проверка каскадного удаления
             response = client.get(f"{BASE_URL}/answers/{answer_id}")
-            print(
-                f"✅ Cascade delete: {response.status_code} (should be 404)")
+            assert response.status_code == 404
+            print("✅ Каскадное удаление работает")
 
-            print("🎉 API test completed!")
+            print("🎉 Все эндпоинты API работают корректно!")
+            return True
 
         except Exception as e:
-            print(f"❌ Exception during test: {e}")
-            import traceback
-            traceback.print_exc()
+            print(f"❌ Тест не пройден: {e}")
+            return False
 
 
 if __name__ == "__main__":
